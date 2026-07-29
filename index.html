@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Synthesizer 🎶</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Wix+Madefor+Display:wght@800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --page-background: linear-gradient(
+        110deg,
+        oklch(58% 0.28 255) 0%,
+        oklch(42% 0.34 295) 100%
+      );
+    }
+
+    html {
+      background: #3a1c71; /* Fallback */
+      background: var(--page-background);
+      min-height: 100vh;
+      color: white;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: "Wix Madefor Display", sans-serif;
+      text-align: center;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 0;
+      text-shadow: 2px 4px 3px rgba(0,0,0,0.3);
+    }
+
+    .synth {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: flex-end;
+      margin-top: 20px;
+      gap: 4px;
+    }
+
+    .note {
+      width: 60px;
+      height: 200px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.1s, box-shadow 0.1s;
+      position: relative;
+      outline: none;
+    }
+
+    .note.active {
+      background-color: #f0f0f0;
+      transform: translateY(5px);
+    }
+
+    .note:hover:not(.active) {
+      filter: brightness(1.1);
+      box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .note:active {
+      transform: translateY(8px);
+      box-shadow: none;
+    }
+
+    /* Радужные цвета клавиш */
+    .note:nth-child(1) { background-color: #FF6B6B; }
+    .note:nth-child(2) { background-color: #FFA06B; }
+    .note:nth-child(3) { background-color: #FFD06B; }
+    .note:nth-child(4) { background-color: #FFFF6B; }
+    .note:nth-child(5) { background-color: #BFFF6B; }
+    .note:nth-child(6) { background-color: #6BFFB6; }
+    .note:nth-child(7) { background-color: #6BD2FF; }
+    .note:nth-child(8) { background-color: #936BFF; }
+
+    #waveform {
+      margin-top: 25px;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-family: inherit;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      background-color: #fff;
+      color: #333;
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: background-color 0.3s, box-shadow 0.3s, transform 0.1s;
+    }
+
+    #waveform:hover {
+      background-color: #f8f8f8;
+      box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    #waveform:focus {
+      outline: none;
+      box-shadow: 0px 0px 0px 3px rgba(255, 255, 255, 0.8);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎶 Music Synthesizer 🎵</h1>
+
+  <div class="synth">
+    <button class="note" aria-label="Нота 1"></button>
+    <button class="note" aria-label="Нота 2"></button>
+    <button class="note" aria-label="Нота 3"></button>
+    <button class="note" aria-label="Нота 4"></button>
+    <button class="note" aria-label="Нота 5"></button>
+    <button class="note" aria-label="Нота 6"></button>
+    <button class="note" aria-label="Нота 7"></button>
+    <button class="note" aria-label="Нота 8"></button>
+  </div>
+
+  <select id="waveform">
+    <option value="sine">Sine Wave</option>
+    <option value="square">Square Wave</option>
+    <option value="sawtooth">Sawtooth Wave</option>
+    <option value="triangle">Triangle Wave</option>
+  </select>
+
+  <script>
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const activeOscillators = {};
+    const waveformSelect = document.querySelector("#waveform");
+
+    const getSelectedWaveform = () => waveformSelect.value;
+    let selectedWaveform = getSelectedWaveform();
+
+    waveformSelect.addEventListener("change", () => selectedWaveform = getSelectedWaveform());
+
+    const createOscillatorNode = (frequency) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.type = selectedWaveform;
+      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.02);
+
+      oscillator.start();
+      return { oscillator, gainNode };
+    };
+
+    const playSound = (frequency) => {
+      if (!activeOscillators[frequency]) {
+        activeOscillators[frequency] = createOscillatorNode(frequency);
+      }
+    };
+
+    const stopSound = (frequency) => {
+      if (activeOscillators[frequency]) {
+        const { oscillator, gainNode } = activeOscillators[frequency];
+
+        gainNode.gain.setValueAtTime(gainNode.gain.value, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.02);
+
+        oscillator.stop(audioContext.currentTime + 0.02);
+        delete activeOscillators[frequency];
+      }
+    };
+
+    const setupButtonListeners = () => {
+      const noteButtons = document.querySelectorAll(".note");
+
+      noteButtons.forEach((button, index) => {
+        // Базовая нота A3 (220Гц) + полутона
+        const frequency = 220 * 2 ** (index / 12);
+
+        const startSound = (event) => {
+          event.preventDefault();
+          button.classList.add("active");
+          playSound(frequency);
+        };
+
+        const endSound = () => {
+          button.classList.remove("active");
+          stopSound(frequency);
+        };
+
+        button.addEventListener("mousedown", startSound);
+        button.addEventListener("mouseup", endSound);
+        button.addEventListener("mouseleave", endSound);
+
+        button.addEventListener("touchstart", startSound, { passive: false });
+        button.addEventListener("touchend", endSound);
+        button.addEventListener("touchcancel", endSound);
+      });
+    };
+
+    const unlockAudioContext = () => {
+      if (audioContext.state === "suspended") {
+        audioContext.resume();
+      }
+    };
+
+    document.addEventListener("click", unlockAudioContext);
+    document.addEventListener("touchstart", unlockAudioContext);
+
+    setupButtonListeners();
+  </script>
+</body>
+</html>
